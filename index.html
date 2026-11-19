@@ -1,0 +1,744 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>EstateAI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Tektur:wght@500;600;700&family=Inter:wght@400;500;600&family=Manrope:wght@700;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+/* Layout: dark technical page. Hero text, then a full-width 3D stage where client messages (noisy, amber) pass through the bot core and leave as ordered lead cards (teal). */
+:root {
+  --bg: #060B16;
+  --bg2: #0A1224;
+  --surface: rgba(18, 30, 54, 0.72);
+  --ink: #E8F0FA;
+  --muted: #94A6C0;
+  --line: rgba(120, 160, 210, 0.22);
+  --accent: #35E0C9;
+  --accent-ink: #03211D;
+  --amber: #F2B544;
+  --font-display: 'Manrope', 'Inter', Arial, sans-serif;
+  --font-body: 'Inter', Arial, sans-serif;
+  --font-digital: 'Tektur', 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.6; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.1; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2.1rem, 5.6vw, 4rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.6rem, 3.6vw, 2.4rem); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 1.1rem; font-weight: 700; }
+p { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+section[id] { scroll-margin-top: 72px; }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.band { padding-block: 76px; }
+.mono { font-family: var(--font-mono); }
+.eyebrow { font-family: var(--font-digital); font-weight: 600; font-size: 1.05rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; text-shadow: 0 0 18px rgba(53, 224, 201, 0.45); font-variant-numeric: tabular-nums; }
+.lead { color: var(--muted); max-width: 62ch; margin-top: 16px; }
+
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: rgba(6, 11, 22, 0.86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 13px; }
+.logo { font-family: var(--font-display); font-weight: 800; font-size: 1.2rem; text-decoration: none; }
+.logo span span { color: var(--accent); }
+nav { display: flex; gap: 22px; align-items: center; }
+nav a.link { text-decoration: none; color: var(--muted); font-size: 0.92rem; }
+nav a.link:hover { color: var(--ink); }
+.btn { display: inline-block; background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none; padding: 12px 22px; border-radius: 10px; border: 0; font-size: 1rem; font-family: inherit; cursor: pointer; box-shadow: 0 0 28px rgba(53, 224, 201, 0.28); }
+.btn:hover { filter: brightness(1.08); }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
+@media (max-width: 760px) { nav a.link { display: none; } }
+
+.hero { position: relative; padding-top: 72px; background:
+  linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 56px 56px,
+  linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 56px 56px; background-color: var(--bg); }
+.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, rgba(6,11,22,0.2), var(--bg) 78%); pointer-events: none; }
+.hero > .wrap { position: relative; z-index: 1; }
+.hero .lead { font-size: 1.12rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.hero small { display: block; margin-top: 18px; color: var(--muted); font-size: 0.88rem; }
+
+.stage { position: relative; z-index: 1; height: clamp(300px, 48vw, 520px); margin-top: 28px; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.tag { position: absolute; z-index: 2; font-family: var(--font-mono); font-size: 0.74rem; line-height: 1.4; color: var(--muted); max-width: 22%; padding-inline: 4px; }
+.tag b { display: block; color: var(--ink); font-weight: 500; font-size: 0.8rem; }
+.tag.l { left: max(16px, env(safe-area-inset-left, 0px)); bottom: 6%; }
+.tag.c { left: 50%; transform: translateX(-50%); top: 3%; text-align: center; max-width: 30%; }
+.tag.c b { color: var(--accent); }
+.tag.r { right: max(16px, env(safe-area-inset-right, 0px)); bottom: 6%; text-align: right; }
+.tag.l b { color: var(--amber); }
+@media (max-width: 640px) { .tag { font-size: 0.62rem; } .tag b { font-size: 0.68rem; } .tag.l, .tag.r { max-width: 30%; } .tag small { display: none; } }
+
+.glass { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; backdrop-filter: blur(6px); }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 36px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 36px; }
+.grid3 > *, .grid2 > * { min-width: 0; }
+@media (max-width: 860px) { .grid3 { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+.card { padding: 26px; display: flex; flex-direction: column; gap: 10px; }
+.card p { color: var(--muted); font-size: 0.96rem; }
+.idx { font-family: var(--font-digital); font-weight: 600; color: var(--accent); font-size: 1rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.split { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; margin-top: 36px; align-items: start; }
+.split > * { min-width: 0; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+.chat { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.cap { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); letter-spacing: 0.04em; }
+.msg { padding: 10px 14px; border-radius: 14px; max-width: 86%; font-size: 0.95rem; line-height: 1.45; }
+.msg.bot { background: rgba(120, 160, 210, 0.14); align-self: flex-start; border-bottom-left-radius: 4px; }
+.msg.me { background: var(--accent); color: var(--accent-ink); align-self: flex-end; border-bottom-right-radius: 4px; }
+.lead-card { padding: 20px; border-color: rgba(53, 224, 201, 0.45); box-shadow: 0 0 40px rgba(53, 224, 201, 0.1); }
+.lead-card .t { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 14px; }
+.pill { font-family: var(--font-mono); background: rgba(242, 181, 68, 0.16); color: var(--amber); border: 1px solid rgba(242, 181, 68, 0.5); font-size: 0.72rem; border-radius: 99px; padding: 2px 10px; }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px; font-size: 0.93rem; margin: 0; }
+.kv dt { color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+.kv dd { margin: 0; font-weight: 600; }
+
+.nolist { list-style: none; padding: 0; margin: 32px 0 0; border-top: 1px solid var(--line); }
+.nolist li { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.nolist b { font-family: var(--font-display); }
+.nolist span { color: var(--muted); }
+@media (max-width: 640px) { .nolist li { grid-template-columns: 1fr; gap: 4px; } }
+
+.niches { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 8px 18px; font-size: 0.95rem; }
+
+.faq { margin-top: 32px; display: grid; gap: 10px; }
+details { padding: 16px 20px; }
+summary { cursor: pointer; font-weight: 600; }
+details p { margin-top: 10px; color: var(--muted); }
+
+.contact-box { display: grid; gap: 12px; margin-top: 28px; max-width: 520px; }
+.copyrow { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 16px; }
+.copyrow .k { color: var(--muted); font-family: var(--font-mono); font-size: 0.74rem; display: block; }
+.copyrow button { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-family: inherit; }
+.copyrow button:hover { border-color: var(--accent); }
+footer { padding-block: 28px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); font-family: var(--font-mono); }
+.alt { background: var(--bg2); border-block: 1px solid var(--line); }
+
+/* scroll-driven 3D world */
+.world { position: relative; height: 480vh; border-block: 1px solid var(--line); background: var(--bg); }
+.pin { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
+.cv { position: absolute; inset: 0; }
+.cv canvas { width: 100%; height: 100%; display: block; }
+.pin::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to top, rgba(6,11,22,.94) 0%, rgba(6,11,22,.55) 34%, transparent 58%), linear-gradient(to bottom, rgba(6,11,22,.7), transparent 22%); }
+.pin .wrap { position: absolute; left: 0; right: 0; z-index: 2; }
+.hud-top { top: 84px; }
+.slides { bottom: 104px; height: 220px; }
+.slide { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: 0; opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .5s ease; pointer-events: none; }
+.slide.on { opacity: 1; transform: none; pointer-events: auto; }
+.slide .tagline { font-family: var(--font-digital); font-weight: 600; font-size: 1.05rem; text-shadow: 0 0 18px rgba(53, 224, 201, 0.45); color: var(--accent); margin-bottom: 12px; letter-spacing: .04em; }
+.slide h2 { max-width: 16ch; font-size: clamp(1.9rem, 5vw, 3.2rem); }
+.slide .lead { margin-top: 14px; }
+.hud { bottom: max(26px, env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 18px; }
+.segs { display: flex; gap: 8px; }
+.seg { display: block; width: 46px; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.seg i { display: block; height: 100%; width: 0; background: var(--accent); }
+.hud .mono { font-size: .85rem; color: var(--muted); }
+.hud .more { margin-left: auto; text-decoration: none; color: var(--ink); }
+.hud .more:hover { color: var(--accent); }
+.world.static { height: auto; }
+.world.static .pin { position: relative; height: auto; overflow: visible; }
+.world.static .pin::after, .world.static .hud, .world.static .hud-top { display: none; }
+.world.static .cv { position: relative; height: 56vh; }
+.world.static .slides { position: static; height: auto; display: grid; gap: 28px; padding-block: 36px; }
+.world.static .slide { position: static; opacity: 1; transform: none; }
+.world.static.nogl .cv { display: none; }
+@media (max-width: 640px) { .slides { bottom: 92px; } .seg { width: 30px; } .hud { gap: 12px; } }
+@media (prefers-reduced-motion: reduce) { .slide { transition: none; } }
+
+/* logo */
+.logo { display: inline-flex; align-items: center; gap: 10px; }
+.logo svg { width: 34px; height: 34px; display: block; transition: transform .4s ease; }
+.logo:hover svg { transform: rotate(-6deg) scale(1.06); }
+
+/* animation: everything stays visible at rest, motion is only added on top */
+@keyframes rise { from { transform: translateY(18px); } to { transform: none; } }
+@keyframes pop { from { transform: translateY(10px) scale(.96); } to { transform: none; } }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(242,181,68,.45); } 50% { box-shadow: 0 0 0 7px rgba(242,181,68,0); } }
+@keyframes drift { to { background-position: 56px 56px, 56px 56px; } }
+.hero > .wrap > * { animation: rise .8s cubic-bezier(.2,.7,.2,1) both; }
+.hero > .wrap > :nth-child(2) { animation-delay: .08s; }
+.hero > .wrap > :nth-child(3) { animation-delay: .16s; }
+.hero > .wrap > :nth-child(4) { animation-delay: .24s; }
+.hero > .wrap > :nth-child(5) { animation-delay: .32s; }
+.hero { animation: drift 14s linear infinite; }
+.pill { animation: glow 2.4s ease-in-out infinite; }
+.rv { transition: transform .7s cubic-bezier(.2,.7,.2,1); }
+.rv.pre { transform: translateY(22px); }
+.chat.in .msg { animation: pop .5s ease both; }
+.chat.in .msg:nth-of-type(1) { animation-delay: .0s; }
+.chat.in .msg:nth-of-type(2) { animation-delay: .5s; }
+.chat.in .msg:nth-of-type(3) { animation-delay: 1.0s; }
+.chat.in .msg:nth-of-type(4) { animation-delay: 1.5s; }
+.glass.card { transition: border-color .25s, transform .25s; }
+.glass.card:hover { border-color: rgba(53,224,201,.55); transform: translateY(-3px); }
+@media (prefers-reduced-motion: reduce) {
+  .hero, .hero > .wrap > *, .pill, .chat.in .msg { animation: none !important; }
+  .rv, .glass.card, .logo svg { transition: none !important; }
+  .rv.pre { transform: none; }
+}
+</style>
+
+<header class="top"><div class="wrap bar">
+  <a class="logo" href="#top" aria-label="EstateAI"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#0F1F3D"/><path d="M32 10 L53 27.5 V47 Q53 51 49 51 H27.5 L17 59 V51 H15 Q11 51 11 47 V27.5 Z" fill="#35E0C9"/><circle cx="23" cy="36" r="3.3" fill="#0F1F3D"/><circle cx="32" cy="36" r="3.3" fill="#F2B544"/><circle cx="41" cy="36" r="3.3" fill="#0F1F3D"/></svg><span>Estate<span>AI</span></span></a>
+  <nav>
+    <a class="link" href="#how">Как работает</a>
+    <a class="link" href="#limits">Границы</a>
+    <a class="link" href="#start">Запуск</a>
+    <a class="link" href="#faq">Вопросы</a>
+    <a class="btn" href="#contact">Запросить демо</a>
+  </nav>
+</div></header>
+
+<main id="top">
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">ИИ-помощник для сайта компании</p>
+    <h1>Превращает вопросы клиентов в готовые заявки</h1>
+    <p class="lead">Помощник отвечает по вашим материалам, задаёт по одному вопросу и передаёт менеджеру заявку: цель, район, срок и телефон. Работает вечером, ночью и в выходные.</p>
+    <div class="actions">
+      <a class="btn" href="#contact">Запросить демо</a>
+      <a class="btn ghost" href="#how">Как это работает</a>
+    </div>
+    <small>Сначала показываем демо на ваших материалах, потом решаем, нужен ли запуск.</small>
+  </div>
+  <div class="stage" id="stage" aria-label="Схема: сообщения клиентов проходят через помощника и превращаются в структурированные заявки">
+    <canvas id="gl"></canvas>
+    <div class="tag l"><b>Вопросы клиентов</b><small>в свободной форме</small></div>
+    <div class="tag c"><b>EstateAI</b><small>читает, уточняет, собирает</small></div>
+    <div class="tag r"><b>Заявки в кабинете</b><small>цель · район · срок · телефон</small></div>
+  </div>
+</section>
+
+<section class="world" id="world" aria-label="Как помощник устроен внутри">
+  <div class="pin">
+    <div class="cv" id="world-cv"><canvas id="world-gl"></canvas></div>
+    <div class="wrap hud-top"><p class="eyebrow">Внутри системы</p></div>
+    <div class="wrap slides">
+      <div class="slide on"><p class="mono tagline">01 / Ответ 24/7</p><h2>Клиент пишет в любое время</h2><p class="lead">Помощник отвечает вечером, ночью и в выходные и сразу начинает собирать заявку.</p></div>
+      <div class="slide"><p class="mono tagline">02 / База знаний</p><h2>Отвечает по вашим материалам</h2><p class="lead">Услуги, условия, офисы и частые вопросы. Цены бот называет только из вашей базы.</p></div>
+      <div class="slide"><p class="mono tagline">03 / Кабинет</p><h2>Заявки уже собраны</h2><p class="lead">Цель, район, срок и телефон лежат в одном списке вместе с перепиской.</p></div>
+      <div class="slide"><p class="mono tagline">04 / Данные</p><h2>Под вашим контролем</h2><p class="lead">Свои ключи доступа, ежедневные копии базы и сторож, который сообщает о сбоях.</p></div>
+    </div>
+    <div class="wrap hud">
+      <div class="segs"><span class="seg"><i></i></span><span class="seg"><i></i></span><span class="seg"><i></i></span><span class="seg"><i></i></span></div>
+      <span class="mono" id="wcount">01 / 04</span>
+      <a class="mono more" href="#contact">Запросить демо ↗</a>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="how"><div class="wrap">
+  <p class="eyebrow">Как работает</p>
+  <h2>Три действия на входе, дальше работает ваша команда</h2>
+  <div class="grid3">
+    <div class="glass card"><span class="idx">шаг 1</span><h3>Отвечает по вашим материалам</h3><p>Услуги, условия, офисы, частые вопросы. Цены бот называет только те, что вы ему дали.</p></div>
+    <div class="glass card"><span class="idx">шаг 2</span><h3>Собирает данные заявки</h3><p>Набор полей настраивается под нишу. Бот спрашивает по одному вопросу и не давит.</p></div>
+    <div class="glass card"><span class="idx">шаг 3</span><h3>Передаёт менеджеру</h3><p>Заявка и вся переписка лежат в личном кабинете. Менеджер видит, о чём уже говорили.</p></div>
+  </div>
+  <div class="split">
+    <div class="glass chat">
+      <span class="cap">ПРИМЕР ДИАЛОГА, ВЫМЫШЛЕННЫЙ · ЧТО ВИДИТ КЛИЕНТ</span>
+      <div class="msg me">Хочу срочно продать квартиру в Октябрьском районе</div>
+      <div class="msg bot">Понял. Нужна продажа за 24 часа или подойдёт до 14 дней?</div>
+      <div class="msg me">До 14 дней</div>
+      <div class="msg bot">Как к вам обращаться и на какой номер перезвонить?</div>
+    </div>
+    <div class="glass lead-card">
+      <div class="t"><span class="cap">ЧТО ВИДИТ МЕНЕДЖЕР</span><span class="pill">новая заявка</span></div>
+      <dl class="kv">
+        <dt>цель</dt><dd>Срочная продажа</dd>
+        <dt>район</dt><dd>Октябрьский</dd>
+        <dt>срок</dt><dd>До 14 дней</dd>
+        <dt>переписка</dt><dd>Сохранена целиком</dd>
+      </dl>
+    </div>
+  </div>
+</div></section>
+
+<section class="band alt" id="features"><div class="wrap">
+  <p class="eyebrow">Возможности</p>
+  <h2>Что есть в системе сейчас</h2>
+  <div class="grid2">
+    <div class="glass card"><h3>Личный кабинет</h3><p>Список заявок, история диалогов и статистика сообщений. У каждой компании свой доступ по отдельному ключу.</p></div>
+    <div class="glass card"><h3>Ответ в любое время</h3><p>Клиент получает ответ вечером, ночью и в выходные, а утром заявка уже ждёт менеджера.</p></div>
+    <div class="glass card"><h3>Настройка под компанию</h3><p>Название, тон общения, приветствие, поля заявки и база знаний задаются отдельно для каждой компании.</p></div>
+    <div class="glass card"><h3>Копии и контроль</h3><p>База данных копируется ежедневно с проверкой, а сторож следит за сервером и сообщает о сбоях.</p></div>
+  </div>
+</div></section>
+
+<section class="band" id="limits"><div class="wrap">
+  <p class="eyebrow">Границы</p>
+  <h2>Что помощник не делает</h2>
+  <p class="lead">Ограничения называем заранее, чтобы после запуска не было сюрпризов.</p>
+  <ul class="nolist">
+    <li><b>Не оценивает и не называет цену сделки</b><span>Если цены нет в ваших материалах, бот передаёт вопрос специалисту.</span></li>
+    <li><b>Не даёт юридических выводов</b><span>Проверка объекта и сделки остаётся за вашими специалистами.</span></li>
+    <li><b>Не заменяет менеджера</b><span>Он собирает вводные, а разговор с клиентом и сделку ведёт человек.</span></li>
+    <li><b>Пока без уведомлений</b><span>На старте менеджер сам заглядывает в кабинет, например утром и вечером.</span></li>
+    <li><b>Работает на сайте</b><span>Telegram, WhatsApp, MAX и CRM не включены, их можно рассмотреть после запуска.</span></li>
+  </ul>
+</div></section>
+
+<section class="band alt" id="who"><div class="wrap">
+  <p class="eyebrow">Для кого</p>
+  <h2>Подходит бизнесу, где заявка начинается с вопроса</h2>
+  <p class="lead">Есть готовые наборы полей для недвижимости, стоматологии, автосалонов и юристов. Для остальных ниш набор собираем вместе с вами.</p>
+  <div class="niches">
+    <span class="chip">Агентства недвижимости</span><span class="chip">Салоны красоты</span><span class="chip">Строительные компании</span><span class="chip">Стоматологии</span><span class="chip">Автосалоны</span><span class="chip">Юристы</span>
+  </div>
+</div></section>
+
+<section class="band" id="data"><div class="wrap">
+  <p class="eyebrow">Данные клиентов</p>
+  <h2>Персональные данные не оставляем на потом</h2>
+  <div class="grid3">
+    <div class="glass card"><h3>Согласие до диалога</h3><p>Чат не откроется клиенту, пока не заполнены данные оператора и тексты политики и согласия вашей компании.</p></div>
+    <div class="glass card"><h3>Срок хранения</h3><p>Срок хранения диалогов задаётся для каждой компании отдельно.</p></div>
+    <div class="glass card"><h3>Модель ИИ</h3><p>Ответы формирует YandexGPT. Об этом говорится в тексте согласия. Юридические тексты вы согласуете со своим юристом.</p></div>
+  </div>
+</div></section>
+
+<section class="band alt" id="start"><div class="wrap">
+  <p class="eyebrow">Запуск</p>
+  <h2>Как подключаем</h2>
+  <div class="grid2">
+    <div class="glass card"><span class="idx">этап 1</span><h3>Демо на ваших материалах</h3><p>Вы присылаете услуги, условия и частые вопросы. Мы показываем, как бот на них отвечает.</p></div>
+    <div class="glass card"><span class="idx">этап 2</span><h3>Договор и предоплата</h3><p>Фиксируем, что входит в подключение, и согласуем стоимость.</p></div>
+    <div class="glass card"><span class="idx">этап 3</span><h3>Настройка и установка</h3><p>Загружаем материалы, проверяем диалоги и вставляем на ваш сайт одну строку кода.</p></div>
+    <div class="glass card"><span class="idx">этап 4</span><h3>Работа и поддержка</h3><p>Заявки приходят в кабинет, а мы обновляем материалы и отвечаем на вопросы по работе.</p></div>
+  </div>
+</div></section>
+
+<section class="band" id="faq"><div class="wrap">
+  <p class="eyebrow">Вопросы</p>
+  <h2>Что обычно спрашивают</h2>
+  <div class="faq">
+    <details class="glass"><summary>Что, если бот ошибётся?</summary><p>Он отвечает только по вашим материалам, а при сомнении передаёт вопрос специалисту. Все диалоги видны в кабинете, и вы можете поправить материалы.</p></details>
+    <details class="glass"><summary>Сколько это стоит?</summary><p>Стоимость зависит от того, что нужно настроить, и обсуждается после демо.</p></details>
+    <details class="glass"><summary>Кто вставляет код на сайт?</summary><p>Нужна одна строка кода. Если сайт на конструкторе или им занимается подрядчик, поможем объяснить, что и куда вставить.</p></details>
+    <details class="glass"><summary>Где хранятся данные?</summary><p>Ответ зависит от выбранного сервера. Мы сообщим его письменно до подписания договора.</p></details>
+    <details class="glass"><summary>Можно подключить CRM или мессенджер?</summary><p>Передача заявок в amoCRM и Битрикс24 предусмотрена, но на живых аккаунтах мы пока её не проверяли. Мессенджеры обсуждаем отдельно.</p></details>
+  </div>
+</div></section>
+
+<section class="band alt" id="contact"><div class="wrap">
+  <p class="eyebrow">Демо</p>
+  <h2>Покажем бота на материалах вашей компании</h2>
+  <p class="lead">Напишите, в какой сфере вы работаете. Мы подготовим пример диалога и покажем кабинет.</p>
+  <div class="contact-box" id="contacts"></div>
+</div></section>
+</main>
+<footer><div class="wrap">EstateAI · ИИ-помощник для заявок с сайта</div></footer>
+
+<script>
+/* Контакты: замените значения и опубликуйте страницу заново. */
+var CONTACTS = [
+  { label: "имя", value: "[Ваше имя]" },
+  { label: "телефон", value: "[телефон]" },
+  { label: "telegram", value: "[@ник]" },
+  { label: "почта", value: "[почта]" }
+];
+(function () {
+  var box = document.getElementById("contacts");
+  CONTACTS.forEach(function (c) {
+    var row = document.createElement("div");
+    row.className = "glass copyrow";
+    var left = document.createElement("div");
+    var k = document.createElement("span"); k.className = "k"; k.textContent = c.label;
+    var v = document.createElement("span"); v.textContent = c.value;
+    left.appendChild(k); left.appendChild(v);
+    var b = document.createElement("button"); b.type = "button"; b.textContent = "Копировать";
+    b.addEventListener("click", function () {
+      var done = function () { b.textContent = "Скопировано"; setTimeout(function () { b.textContent = "Копировать"; }, 1500); };
+      var fallback = function () {
+        var r = document.createRange(); r.selectNodeContents(v);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        b.textContent = "Выделено";
+      };
+      try { navigator.clipboard.writeText(c.value).then(done, fallback); } catch (e) { fallback(); }
+    });
+    row.appendChild(left); row.appendChild(b); box.appendChild(row);
+  });
+})();
+
+/* 3D-мир: местность с чипами, камера движется при прокрутке */
+(function () {
+  var world = document.getElementById("world");
+  if (!world) return;
+  var slides = world.querySelectorAll(".slide"), segs = world.querySelectorAll(".seg i"), counter = document.getElementById("wcount");
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var host = document.getElementById("world-cv"), canvas = document.getElementById("world-gl");
+  function fail() { world.classList.add("static", "nogl"); }
+  if (!window.THREE) { fail(); return; }
+  if (reduce) world.classList.add("static");
+  var renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false }); }
+  catch (e) { fail(); return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.setClearColor(0x060B16, 1);
+
+  var ACCENT = 0x35E0C9, AMBER = 0xF2B544, XS = [0, 16, 32, 48];
+  var scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x060B16, 0.04);
+  var camera = new THREE.PerspectiveCamera(48, 1, 0.1, 120);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  var sun = new THREE.DirectionalLight(0xbfeee8, 0.9); sun.position.set(4, 8, 6); scene.add(sun);
+
+  function sstep(a, b, x) { var t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+  function clamp01(x) { return Math.min(1, Math.max(0, x)); }
+  function H(x, z) {
+    var h = 0.45 * Math.sin(x * 0.31) * Math.cos(z * 0.27) + 0.25 * Math.sin(x * 0.83 + z * 0.61) + 0.18 * Math.cos(z * 0.9 - x * 0.4);
+    var k = 1;
+    for (var i = 0; i < XS.length; i++) k = Math.min(k, sstep(3.5, 7.5, Math.hypot(x - XS[i], z)));
+    return h * k;
+  }
+
+  /* местность: точки и «травинки» */
+  var tp = [], tc = [], bp = [], bc = [];
+  var cLow = new THREE.Color(0x0a3a44), cHigh = new THREE.Color(ACCENT), tmp = new THREE.Color();
+  for (var x = -14; x <= 62; x += 0.55) {
+    for (var z = -15; z <= 15; z += 0.55) {
+      var px = x + (Math.random() - 0.5) * 0.4, pz = z + (Math.random() - 0.5) * 0.4, py = H(px, pz);
+      var tt = clamp01((py + 0.6) / 1.2);
+      tmp.copy(cLow).lerp(cHigh, tt * 0.8);
+      tp.push(px, py, pz); tc.push(tmp.r, tmp.g, tmp.b);
+      var near = 1;
+      for (var q = 0; q < XS.length; q++) near = Math.min(near, sstep(3, 6, Math.hypot(px - XS[q], pz)));
+      var len = 0.06 + near * (0.14 + Math.random() * 0.22);
+      var lean = 0.12 + Math.random() * 0.1, ang = Math.random() * 6.283;
+      bp.push(px, py, pz, px + Math.cos(ang) * lean * near, py + len, pz + Math.sin(ang) * lean * near);
+      bc.push(tmp.r * 0.5, tmp.g * 0.5, tmp.b * 0.5, tmp.r * 1.2, tmp.g * 1.2, tmp.b * 1.2);
+    }
+  }
+  var tg = new THREE.BufferGeometry();
+  tg.setAttribute("position", new THREE.Float32BufferAttribute(tp, 3));
+  tg.setAttribute("color", new THREE.Float32BufferAttribute(tc, 3));
+  scene.add(new THREE.Points(tg, new THREE.PointsMaterial({ size: 0.06, vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false })));
+  var bg = new THREE.BufferGeometry();
+  bg.setAttribute("position", new THREE.Float32BufferAttribute(bp, 3));
+  bg.setAttribute("color", new THREE.Float32BufferAttribute(bc, 3));
+  scene.add(new THREE.LineSegments(bg, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.75 })));
+
+  /* светлячки */
+  var FN = 160, fpos = new Float32Array(FN * 3), fseed = [];
+  for (var f = 0; f < FN; f++) { fseed.push({ x: -10 + Math.random() * 70, y: 0.5 + Math.random() * 3.5, z: -9 + Math.random() * 18, p: Math.random() * 6.28 }); }
+  var fg = new THREE.BufferGeometry(); fg.setAttribute("position", new THREE.BufferAttribute(fpos, 3));
+  scene.add(new THREE.Points(fg, new THREE.PointsMaterial({ color: AMBER, size: 0.09, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending })));
+
+  /* помощники */
+  var GT = (function () {
+    var c = document.createElement("canvas"); c.width = c.height = 64; var g = c.getContext("2d");
+    var gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.3, "rgba(255,255,255,0.35)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
+  })();
+  function glow(color, size) {
+    var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: GT, color: color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    s.scale.set(size, size, 1); return s;
+  }
+  function slab(w, h, d, edge, op) {
+    var g = new THREE.BoxGeometry(w, h, d);
+    var m = new THREE.Mesh(g, new THREE.MeshPhongMaterial({ color: 0x13324a, emissive: 0x07202c, shininess: 80, transparent: true, opacity: op || 0.88 }));
+    m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), new THREE.LineBasicMaterial({ color: edge || ACCENT, transparent: true, opacity: 0.9 })));
+    return m;
+  }
+  function trace(group, pts) {
+    var v = pts.map(function (p) { return new THREE.Vector3(p[0], p[1], p[2]); });
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(v), new THREE.LineBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.6 })));
+    var lens = [0], tot = 0;
+    for (var i = 1; i < v.length; i++) { tot += v[i].distanceTo(v[i - 1]); lens.push(tot); }
+    return { pts: v, lens: lens, total: tot, group: group };
+  }
+  function along(tr, u, out) {
+    var d = u * tr.total, i = 1;
+    while (i < tr.lens.length - 1 && tr.lens[i] < d) i++;
+    var a = tr.lens[i - 1], b = tr.lens[i], k = (d - a) / ((b - a) || 1);
+    out.x = tr.pts[i - 1].x + (tr.pts[i].x - tr.pts[i - 1].x) * k;
+    out.y = tr.pts[i - 1].y + (tr.pts[i].y - tr.pts[i - 1].y) * k;
+    out.z = tr.pts[i - 1].z + (tr.pts[i].z - tr.pts[i - 1].z) * k;
+  }
+
+  var st = XS.map(function (x) { var g = new THREE.Group(); g.position.x = x; scene.add(g); return g; });
+
+  /* 01: ядро, спутники и потоки данных */
+  var core1 = slab(2.0, 0.4, 2.0); core1.position.y = 0.55; st[0].add(core1);
+  var g1 = glow(ACCENT, 3.4); g1.position.y = 0.9; st[0].add(g1);
+  var traces = [], sats = [[-3.4, -2.2], [3.4, -2.2], [-3.4, 2.2], [3.4, 2.2]];
+  sats.forEach(function (s) {
+    var sl = slab(1.0, 0.26, 1.0); sl.position.set(s[0], 0.3, s[1]); st[0].add(sl);
+    var sg = Math.sign(s[0]);
+    traces.push(trace(st[0], [[s[0] * 2.4, 0.08, s[1] * 2.8], [s[0], 0.08, s[1] * 2.8], [s[0], 0.08, s[1]], [s[0], 0.08, 0], [sg * 1.05, 0.08, 0]]));
+  });
+  traces.push(trace(st[0], [[-9, 0.08, 0.6], [-1.05, 0.08, 0.6]]));
+  traces.push(trace(st[0], [[9, 0.08, -0.6], [1.05, 0.08, -0.6]]));
+  var pulses = [];
+  traces.forEach(function (tr) { for (var k = 0; k < 6; k++) pulses.push({ tr: tr, u: k / 6, sp: 0.16 + Math.random() * 0.06 }); });
+  var pa = new Float32Array(pulses.length * 3), pg = new THREE.BufferGeometry();
+  pg.setAttribute("position", new THREE.BufferAttribute(pa, 3));
+  scene.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: AMBER, size: 0.16, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
+  var pv = { x: 0, y: 0, z: 0 };
+
+  /* 02: стопка «документов» */
+  var plates = [];
+  for (var i = 0; i < 6; i++) {
+    var pl = slab(3.2, 0.08, 2.2, i === 5 ? AMBER : ACCENT, 0.8);
+    pl.position.y = 0.6 + i * 0.3; pl.rotation.y = i * 0.1; st[1].add(pl); plates.push(pl);
+  }
+  var g2 = glow(ACCENT, 3.0); g2.position.y = 0.5; st[1].add(g2);
+
+  /* 03: сетка заявок */
+  var cells = [];
+  for (var r = 0; r < 3; r++) for (var c = 0; c < 4; c++) {
+    var cl = slab(1.1, 0.18, 0.72); cl.position.set(-2.1 + c * 1.4, 0.3, -1.2 + r * 1.2); cl.userData.base = 0.3; st[2].add(cl); cells.push(cl);
+  }
+
+  /* 04: защита */
+  var core4 = slab(1.6, 0.3, 1.6, AMBER); core4.position.y = 0.5; st[3].add(core4);
+  var dome = new THREE.Mesh(new THREE.IcosahedronGeometry(2.7, 2), new THREE.MeshBasicMaterial({ color: ACCENT, wireframe: true, transparent: true, opacity: 0.3 }));
+  dome.position.y = 0.4; st[3].add(dome);
+  var rings4 = [];
+  [[2.1, 1.1], [2.4, 0.3]].forEach(function (p, i) {
+    var rg = new THREE.Mesh(new THREE.TorusGeometry(p[0], 0.015, 8, 100), new THREE.MeshBasicMaterial({ color: i ? AMBER : ACCENT, transparent: true, opacity: 0.7 }));
+    rg.position.y = 0.6; rg.rotation.x = p[1]; st[3].add(rg); rings4.push(rg);
+  });
+  var g4 = glow(AMBER, 2.2); g4.position.y = 0.5; st[3].add(g4);
+
+  /* размеры и прокрутка */
+  var R = 9;
+  function resize() {
+    var w = host.clientWidth || 1, h = host.clientHeight || 1;
+    renderer.setSize(w, h, false); camera.aspect = w / h;
+    R = camera.aspect < 1 ? 13 : 9; camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize); resize();
+  function scrollP() {
+    if (reduce) return 0;
+    var r = world.getBoundingClientRect(), total = world.offsetHeight - window.innerHeight;
+    return clamp01(-r.top / (total || 1));
+  }
+  var prog = scrollP(), lastIdx = -1;
+
+  function setSlide(idx, t) {
+    if (idx !== lastIdx) {
+      slides.forEach(function (el, i) { el.classList.toggle("on", i === idx); });
+      if (counter) counter.textContent = "0" + (idx + 1) + " / 04";
+      lastIdx = idx;
+    }
+    segs.forEach(function (el, i) { el.style.width = (clamp01(t - i) * 100).toFixed(1) + "%"; });
+  }
+
+  var visible = true, running = false, last = performance.now(), clock = 0;
+  function render(dt) {
+    clock += dt;
+    prog += (scrollP() - prog) * (reduce ? 1 : 0.09);
+    var t = prog * 4, i = Math.min(3, Math.floor(t)), f = i === 3 ? Math.min(1, t - 3) : t - i;
+    var m = i < 3 ? sstep(0.7, 1, f) : 0, s = i + m;
+    var x0 = XS[i], x1 = XS[Math.min(3, i + 1)], cx = x0 + (x1 - x0) * m;
+    var th = 0.55 * Math.sin(t * Math.PI), hy = 3.1 + 0.7 * Math.cos(t * Math.PI * 2) * -0.5;
+    camera.position.set(cx + Math.sin(th) * R, hy, Math.cos(th) * R);
+    camera.lookAt(cx, 0.9, 0);
+    setSlide(Math.min(3, Math.round(s)), Math.min(4, t));
+
+    function act(k) { return clamp01(1 - Math.abs(s - k)); }
+    var a1 = act(0), a2 = act(1), a3 = act(2), a4 = act(3);
+    core1.position.y = 0.55 + Math.sin(clock * 1.4) * 0.06; g1.material.opacity = 0.5 + 0.5 * a1;
+    for (var p = 0; p < pulses.length; p++) {
+      var pu = pulses[p]; pu.u = (pu.u + dt * pu.sp) % 1; along(pu.tr, pu.u, pv);
+      pa[p * 3] = pv.x + XS[0]; pa[p * 3 + 1] = pv.y + 0.06; pa[p * 3 + 2] = pv.z;
+    }
+    pg.attributes.position.needsUpdate = true;
+    for (var q = 0; q < plates.length; q++) {
+      plates[q].position.y = 0.45 + q * (0.22 + a2 * 0.4); plates[q].rotation.y = q * 0.1 + clock * 0.15 * (q % 2 ? 1 : -1) * (0.3 + a2);
+    }
+    var hi = Math.floor(clock * 3) % cells.length;
+    for (var c = 0; c < cells.length; c++) {
+      var on = c === hi, cell = cells[c];
+      cell.position.y += ((on ? 0.65 : cell.userData.base) - cell.position.y) * 0.15;
+      cell.material.emissive.setHex(on ? 0x0e6b60 : 0x07202c);
+    }
+    dome.rotation.y += dt * 0.2; dome.material.opacity = 0.12 + 0.3 * a4;
+    rings4[0].rotation.z += dt * 0.5; rings4[1].rotation.z -= dt * 0.35;
+    core4.rotation.y += dt * 0.4; g4.material.opacity = 0.4 + 0.6 * a4;
+    for (var k = 0; k < FN; k++) {
+      var fs = fseed[k];
+      fpos[k * 3] = fs.x + Math.sin(clock * 0.4 + fs.p) * 0.6;
+      fpos[k * 3 + 1] = fs.y + Math.sin(clock * 0.7 + fs.p * 2) * 0.35;
+      fpos[k * 3 + 2] = fs.z + Math.cos(clock * 0.3 + fs.p) * 0.6;
+    }
+    fg.attributes.position.needsUpdate = true;
+    renderer.render(scene, camera);
+  }
+  function frame(now) {
+    var dt = Math.min((now - last) / 1000, 0.05); last = now;
+    render(dt);
+    if (visible && !reduce) requestAnimationFrame(frame); else running = false;
+  }
+  function start() { if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); } }
+
+  if (reduce) { render(0.016); return; }
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (en) { visible = en[0].isIntersecting; if (visible) start(); }).observe(world);
+  }
+  start();
+})();
+
+/* появление блоков при прокрутке и диалог по сообщениям */
+(function () {
+  if (!("IntersectionObserver" in window)) return;
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var items = document.querySelectorAll(".glass.card, .lead-card, .nolist li, .chip, details");
+  items.forEach(function (el) { el.classList.add("rv"); });
+  var io = new IntersectionObserver(function (en) {
+    en.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      e.target.classList.remove("pre"); io.unobserve(e.target);
+    });
+  }, { threshold: 0.12 });
+  if (!reduce) items.forEach(function (el) {
+    var r = el.getBoundingClientRect();
+    if (r.top > innerHeight) { el.classList.add("pre"); io.observe(el); }
+  });
+  var chat = document.querySelector(".chat");
+  if (chat && !reduce) new IntersectionObserver(function (en, o) {
+    if (en[0].isIntersecting) { chat.classList.add("in"); o.disconnect(); }
+  }, { threshold: 0.4 }).observe(chat);
+})();
+
+/* 3D: шумный поток сообщений -> ядро бота -> упорядоченные заявки */
+(function () {
+  var stage = document.getElementById("stage");
+  var canvas = document.getElementById("gl");
+  if (!window.THREE) { stage.style.display = "none"; return; }
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true }); }
+  catch (e) { stage.style.display = "none"; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(40, 2, 0.1, 100);
+  var ACCENT = 0x35E0C9, AMBER = 0xF2B544, HALF = 7.2;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  var sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(3, 5, 6); scene.add(sun);
+  var core = new THREE.Group(); scene.add(core);
+  /* знак логотипа в объёме: домик с хвостиком чата */
+  var S = 0.058, outline = [[32,10],[53,27.5],[53,47],[51.8,49.8],[49,51],[27.5,51],[17,59],[17,51],[15,51],[12.2,49.8],[11,47],[11,27.5]];
+  var shape = new THREE.Shape();
+  outline.forEach(function (p, i) { var x = (p[0] - 32) * S, y = -(p[1] - 36) * S; if (i) shape.lineTo(x, y); else shape.moveTo(x, y); });
+  shape.closePath();
+  var DEPTH = 0.55;
+  var hgeo = new THREE.ExtrudeGeometry(shape, { depth: DEPTH, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.05, bevelSegments: 2 });
+  hgeo.translate(0, 0, -DEPTH / 2);
+  var house = new THREE.Mesh(hgeo, new THREE.MeshPhongMaterial({ color: ACCENT, emissive: 0x0a4a42, shininess: 60, transparent: true, opacity: 0.92 }));
+  var hedge = new THREE.LineSegments(new THREE.EdgesGeometry(hgeo, 30), new THREE.LineBasicMaterial({ color: 0xbffcf4, transparent: true, opacity: 0.7 }));
+  core.add(house); core.add(hedge);
+  var dots = [];
+  [-9, 0, 9].forEach(function (dx, i) {
+    var d = new THREE.Mesh(new THREE.SphereGeometry(0.19, 20, 16), new THREE.MeshPhongMaterial({ color: i === 1 ? AMBER : 0x0F1F3D, emissive: i === 1 ? 0x6a4a08 : 0x000000 }));
+    d.position.set(dx * S, 0, DEPTH / 2 + 0.12); core.add(d); dots.push(d);
+  });
+  var rings = [];
+  [[2.2, 0.4, 0], [2.55, 1.2, 0.6], [2.9, 2.0, 1.3]].forEach(function (p, i) {
+    var r = new THREE.Mesh(new THREE.TorusGeometry(p[0], 0.012, 8, 120),
+      new THREE.MeshBasicMaterial({ color: i === 1 ? AMBER : ACCENT, transparent: true, opacity: 0.55 }));
+    r.rotation.set(p[1], p[2], 0); core.add(r); rings.push(r);
+  });
+
+  /* карточки заявок справа */
+  var cards = new THREE.Group(); cards.position.x = 5.6; scene.add(cards);
+  [-1.2, 0, 1.2].forEach(function (y, i) {
+    var g = new THREE.BoxGeometry(1.7, 0.85, 0.06);
+    var e = new THREE.LineSegments(new THREE.EdgesGeometry(g),
+      new THREE.LineBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.9 }));
+    e.position.set(0, y, i * -0.25); e.rotation.y = -0.45; cards.add(e);
+    var f = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.1 }));
+    f.position.copy(e.position); f.rotation.copy(e.rotation); cards.add(f);
+    [0.22, 0, -0.22].forEach(function (dy, k) {
+      var l = new THREE.Mesh(new THREE.PlaneGeometry(k === 0 ? 1.1 : 0.8, 0.05),
+        new THREE.MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.6 }));
+      l.position.set(-0.2 + (k === 0 ? 0 : -0.15), y + dy, i * -0.25 + 0.04); l.rotation.y = -0.45; cards.add(l);
+    });
+  });
+
+  /* поток частиц */
+  var N = 420, seed = [], pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+  var cA = new THREE.Color(AMBER), cT = new THREE.Color(ACCENT);
+  for (var i = 0; i < N; i++) {
+    seed.push({ t: Math.random(), sp: 0.08 + Math.random() * 0.06,
+      oy: (Math.random() - 0.5) * 2, oz: (Math.random() - 0.5) * 2, row: Math.floor(Math.random() * 3) - 1 });
+  }
+  var geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  var pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.075, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending }));
+  scene.add(pts);
+
+  function place(dt) {
+    for (var i = 0; i < N; i++) {
+      var s = seed[i]; s.t = (s.t + dt * s.sp) % 1;
+      var t = s.t, x, y, z, k, c;
+      if (t < 0.5) {
+        k = t * 2; x = -HALF + k * (HALF - 1.8);
+        var spread = (1 - k) * (1 - k);
+        y = s.oy * 2.4 * spread + Math.sin(t * 22 + i) * 0.25 * spread;
+        z = s.oz * 1.6 * spread; c = cA.clone().lerp(cT, k * k);
+      } else {
+        k = (t - 0.5) * 2; x = 1.8 + k * (4.1);
+        var row = s.row * 1.2, sp2 = 1 - Math.min(k * 3, 1);
+        y = row + s.oy * 0.35 * sp2 + Math.sin(i) * 0.05; z = row * -0.25 + s.oz * 0.2 * sp2;
+        c = cT;
+      }
+      pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    }
+    geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
+  }
+
+  var mx = 0, my = 0;
+  stage.addEventListener("pointermove", function (e) {
+    var r = stage.getBoundingClientRect();
+    mx = ((e.clientX - r.left) / r.width - 0.5) * 2; my = ((e.clientY - r.top) / r.height - 0.5) * 2;
+  });
+  stage.addEventListener("pointerleave", function () { mx = 0; my = 0; });
+
+  function resize() {
+    var w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    var halfV = Math.tan(camera.fov * Math.PI / 360);
+    camera.position.z = Math.max(9, (HALF + 1.2) / (halfV * camera.aspect));
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize); resize();
+
+  var last = performance.now(), visible = true, running = false;
+  function frame(now) {
+    var dt = Math.min((now - last) / 1000, 0.05); last = now;
+    var tt = now / 1000;
+    core.rotation.y = Math.sin(tt * 0.7) * 0.75; core.rotation.x = Math.sin(tt * 0.5) * 0.12;
+    core.position.y = Math.sin(tt * 1.1) * 0.08;
+    rings.forEach(function (r, i) { r.rotation.z += dt * (0.2 + i * 0.12); r.rotation.x += dt * 0.05 * (i + 1); });
+    dots.forEach(function (d, i) { d.position.y = Math.max(0, Math.sin(tt * 4 - i * 0.9)) * 0.22; });
+    camera.position.x += (mx * 0.9 - camera.position.x) * 0.05;
+    camera.position.y += (-my * 0.6 - camera.position.y) * 0.05;
+    camera.lookAt(0, 0, 0);
+    place(dt); renderer.render(scene, camera);
+    if (visible && !reduce) requestAnimationFrame(frame); else running = false;
+  }
+  function start() { if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); } }
+
+  if (reduce) { place(0); for (var j = 0; j < N; j++) seed[j].t = j / N; place(0); camera.lookAt(0, 0, 0); renderer.render(scene, camera); return; }
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (en) { visible = en[0].isIntersecting; if (visible) start(); }, { threshold: 0.05 }).observe(stage);
+  }
+  start();
+})();
+</script>
+
+</body></html>
